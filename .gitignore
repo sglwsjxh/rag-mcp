@@ -1,0 +1,30 @@
+# python
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# build
+build/
+dist/
+*.egg-info/
+
+# ide
+.vscode/
+.idea/
+# database
+database/
+*.db
+
+# env
+.env
+
+# logs
+logs/
+*.log
+
+# tmp
+tmp/
+temp/
+*.tmp
+*.bak

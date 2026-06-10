@@ -1,0 +1,21 @@
+# api
+openai
+
+# mcp
+mcp[cli]
+
+# db
+chromadb
+
+# config
+python-dotenv
+pydantic-settings
+
+# document
+pymupdf
+markdown-it-py
+bs4
+
+# processing
+numpy
+tiktoken
