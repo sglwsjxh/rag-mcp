@@ -29,9 +29,10 @@ def add_file(collection_name: str, file_path: str) -> str:
 
 
 @mcp.tool()
-def search(query: str, collection_name: str = "") -> list[dict]:
-    """搜索知识库。不指定 collection_name 则搜索全部"""
-    return km.search(query, collection_name)
+def search(query: str, collection_name: str = "", top_k: int | None = None) -> list[dict]:
+    """搜索知识库。不指定 collection_name 则搜索全部。
+    top_k 可选，控制返回结果数量，不填则用环境变量 RERANK_TOP_K"""
+    return km.search(query, collection_name, top_k)
 
 
 @mcp.tool()

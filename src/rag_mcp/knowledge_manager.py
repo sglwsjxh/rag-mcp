@@ -236,13 +236,14 @@ class KnowledgeManager:
         if asset_path.exists():
             asset_path.unlink()
 
-    def search(self, query: str, collection_name: str = "") -> list[dict[str, Any]]:
+    def search(self, query: str, collection_name: str = "", top_k: int | None = None) -> list[dict[str, Any]]:
         """Search across one or all knowledge bases, reranked.
 
         Args:
             query: The search query.
             collection_name: If provided, search only this collection.
                 Otherwise search all registered collections.
+            top_k: Max results to return. Overrides env RERANK_TOP_K if set.
 
         Returns:
             Sorted list of matching documents with metadata.
@@ -286,6 +287,6 @@ class KnowledgeManager:
 
         # Rerank if we have documents
         if all_docs:
-            return self.reranker.rerank(query, all_docs)
+            return self.reranker.rerank(query, all_docs, top_k)
 
         return []

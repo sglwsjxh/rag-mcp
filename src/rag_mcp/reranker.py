@@ -27,17 +27,18 @@ class Reranker:
         self.top_k = settings.rerank_top_k
         self.threshold = settings.rerank_score_threshold
 
-    def rerank(self, query: str, documents: list[dict]) -> list[dict]:
+    def rerank(self, query: str, documents: list[dict], top_k: int | None = None) -> list[dict]:
         """Rerank documents by relevance to query.
 
         Args:
             query: The search query string.
             documents: List of dicts, each containing at least a "text" key.
+            top_k: Max results to return. Overrides self.top_k if set.
 
         Returns:
             Ranked document list with "score" field appended, sorted by
             logit descending. Documents below self.threshold are filtered
-            out. At most self.top_k documents are returned.
+            out. At most top_k (or self.top_k) documents are returned.
         """
         passages = [{"text": d["text"]} for d in documents]
 
@@ -67,8 +68,9 @@ class Reranker:
                 if _sigmoid(r["logit"]) >= self.threshold
             ]
 
+        limit = top_k if top_k is not None else self.top_k
         ranked: list[dict] = []
-        for r in results[: self.top_k]:
+        for r in results[: limit] if limit is not None else results:
             doc = documents[r["index"]].copy()
             doc["score"] = _sigmoid(r["logit"])
             ranked.append(doc)
