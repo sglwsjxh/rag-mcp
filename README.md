@@ -1,6 +1,6 @@
 # RAG MCP Server
 
-一个 RAG 知识库的 MCP server。给 opencode 加上向量检索和重排能力
+一个 RAG 知识库的 MCP server，给 opencode 加上**向量检索**和**重排**能力
 
 > 本项目开发目的是为了在 opencode 中使用 rag 文档检索功能，但是使用的是标准的 mcp 格式，理论上在任何支持 mcp 的平台上都能用
 
@@ -88,7 +88,7 @@ DATABASE_PATH=./database
 }
 ```
 
-重启 opencode，就能直接调这六个工具了：
+重启 opencode，就能直接调这六个工具：
 
 - `rag_list_knowledge_bases` - 列出所有知识库
 - `rag_add_database` - 新建知识库
