@@ -1,3 +1,4 @@
+import os
 from pydantic import model_validator
 from pydantic_settings import BaseSettings
 
@@ -25,7 +26,8 @@ class Settings(BaseSettings):
     # ── Database ──
     database_path: str = "./database"
 
-    model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
+    _env_path = os.path.join(os.path.dirname(__file__), "..", "..", ".env")
+    model_config = {"env_file": _env_path, "env_file_encoding": "utf-8"}
 
     @model_validator(mode="after")
     def _validate_rerank_group(self):
