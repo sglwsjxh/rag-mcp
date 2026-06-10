@@ -24,6 +24,7 @@ class Embedder:
             api_key=settings.embedding_api_key,
         )
         self.model = settings.embedding_model
+        self.detected_dimension: int | None = None
 
     # ── single / multimodal ───────────────────────────────────────────
 
@@ -65,7 +66,16 @@ class Embedder:
             encoding_format="float",
         )
 
-        return resp.data[0].embedding  # type: ignore[no-any-return]
+        vec = resp.data[0].embedding
+        dim = len(vec)
+        if self.detected_dimension is None:
+            self.detected_dimension = dim
+        elif dim != self.detected_dimension:
+            raise ValueError(
+                f"Embedding dimension changed from {self.detected_dimension} "
+                f"to {dim}. Did you change the model?"
+            )
+        return vec
 
     # ── batch pure text ───────────────────────────────────────────────
 
@@ -86,4 +96,16 @@ class Embedder:
             encoding_format="float",
         )
 
-        return [d.embedding for d in resp.data]  # type: ignore[no-any-return]
+        vecs: list[list[float]] = []
+        for d in resp.data:
+            v = d.embedding
+            dim = len(v)
+            if self.detected_dimension is None:
+                self.detected_dimension = dim
+            elif dim != self.detected_dimension:
+                raise ValueError(
+                    f"Embedding dimension changed from {self.detected_dimension} "
+                    f"to {dim}. Did you change the model?"
+                )
+            vecs.append(v)
+        return vecs

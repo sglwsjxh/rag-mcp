@@ -30,14 +30,6 @@ def _read_html(path: Path) -> str:
 
 # ── public API ────────────────────────────────────────────────────────
 
-SUPPORTED_TEXT_EXTENSIONS: tuple[str, ...] = (
-    ".html", ".htm",
-    ".txt", ".py", ".js", ".ts", ".tsx", ".jsx",
-    ".json", ".yml", ".yaml", ".toml", ".ini", ".cfg", ".conf",
-    ".xml", ".csv", ".log", ".rst",
-)
-
-
 def read_file(file_path: str) -> str:
     """Read a file and return its content as plain text.
 

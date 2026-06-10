@@ -13,8 +13,6 @@ dependencies = [
     "openai",
     "chromadb",
     "pydantic-settings",
-    "pymupdf",
-    "markdown-it-py",
     "beautifulsoup4",
     "numpy",
     "tiktoken",

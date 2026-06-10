@@ -161,3 +161,14 @@ class Chunker:
 
         enc = tiktoken.get_encoding("cl100k_base")
         return len(enc.encode(text))
+
+    @staticmethod
+    def truncate(text: str, max_tokens: int) -> str:
+        """Truncate text to at most *max_tokens* tokens."""
+        import tiktoken
+
+        enc = tiktoken.get_encoding("cl100k_base")
+        tokens = enc.encode(text)
+        if len(tokens) <= max_tokens:
+            return text
+        return enc.decode(tokens[:max_tokens], errors="replace")

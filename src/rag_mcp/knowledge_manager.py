@@ -30,7 +30,7 @@ class KnowledgeManager:
         self.settings = Settings()
         self.embedder = Embedder()
         self.reranker = Reranker(self.settings)
-        self.chunker = Chunker(max_tokens=self.settings.embedding_input_token - 100)
+        self.chunker = Chunker(max_tokens=self.settings.embedding_input_token - 200)
 
         self.base_dir = Path(self.settings.database_path)
         self._clients: dict[str, chromadb.PersistentClient] = {}
@@ -176,6 +176,7 @@ class KnowledgeManager:
             embedding = self.embedder.embed(text=src.stem, images=[str(dst)])
             chunk_id = uuid.uuid4().hex[:12]
             collection = self._collection(collection_name)
+            self._validate_collection_dimension(collection, collection_name)
             collection.add(
                 ids=[chunk_id],
                 embeddings=[embedding],
@@ -204,6 +205,7 @@ class KnowledgeManager:
 
         # Store in ChromaDB
         collection = self._collection(collection_name)
+        self._validate_collection_dimension(collection, collection_name)
         collection.add(
             ids=ids,
             embeddings=embeddings,
@@ -236,6 +238,24 @@ class KnowledgeManager:
         if asset_path.exists():
             asset_path.unlink()
 
+    def _validate_collection_dimension(
+        self, collection: chromadb.Collection, name: str
+    ) -> None:
+        """Check existing collection vectors match current embedding dimension."""
+        try:
+            existing = collection.get(limit=1, include=["embeddings"])
+            if existing["embeddings"] and len(existing["embeddings"]) > 0:
+                db_dim = len(existing["embeddings"][0])
+                if db_dim != self.embedder.detected_dimension:
+                    raise ValueError(
+                        f"Knowledge base '{name}' was created with "
+                        f"{db_dim}D embeddings, current model produces "
+                        f"{self.embedder.detected_dimension}D. "
+                        f"Use the original model or create a new knowledge base."
+                    )
+        except (KeyError, IndexError, ValueError):
+            pass
+
     def search(self, query: str, collection_name: str = "", top_k: int | None = None) -> list[dict[str, Any]]:
         """Search across one or all knowledge bases, reranked.
 
@@ -265,11 +285,13 @@ class KnowledgeManager:
             name = entry["name"]
             try:
                 collection = self._collection(name)
-                results = collection.query(
-                    query_embeddings=[query_embedding],
-                    n_results=self.embedder.top_k,
-                    include=["documents", "metadatas", "distances"],
-                )
+                query_kwargs = {
+                    "query_embeddings": [query_embedding],
+                    "include": ["documents", "metadatas", "distances"],
+                }
+                if self.embedder.top_k is not None:
+                    query_kwargs["n_results"] = self.embedder.top_k
+                results = collection.query(**query_kwargs)
 
                 for i in range(len(results["documents"][0])):
                     all_docs.append({
@@ -280,10 +302,10 @@ class KnowledgeManager:
                         "chunk_index": results["metadatas"][0][i].get("chunk_index", 0),
                         "_raw_score": results["distances"][0][i],
                     })
-            except Exception:
+            except Exception as exc:
                 # Let a single collection's failure propagate — don't silently
                 # swallow errors.
-                raise
+                raise RuntimeError(f"Search failed in collection '{name}'") from exc
 
         # Rerank if we have documents
         if all_docs:

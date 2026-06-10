@@ -90,12 +90,12 @@ DATABASE_PATH=./database
 
 重启 opencode，就能直接调这六个工具：
 
-- `rag_list_knowledge_bases` - 列出所有知识库
-- `rag_add_database` - 新建知识库
-- `rag_add_file` - 往知识库里加文件
-- `rag_search` - 搜索知识库
-- `rag_delete_file` - 删除某个文件
-- `rag_delete_database` - 删除整个知识库
+- `list_knowledge_bases` - 列出所有知识库
+- `add_database` - 新建知识库
+- `add_file` - 往知识库里加文件
+- `search` - 搜索知识库
+- `delete_file` - 删除某个文件
+- `delete_database` - 删除整个知识库
 
 ## 数据目录结构
 
