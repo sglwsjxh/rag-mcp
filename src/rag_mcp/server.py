@@ -4,7 +4,7 @@ from mcp.server.fastmcp import FastMCP
 
 from .knowledge_manager import KnowledgeManager
 
-mcp = FastMCP("rag-mcp")
+mcp = FastMCP("rag_mcp")
 km = KnowledgeManager()
 
 

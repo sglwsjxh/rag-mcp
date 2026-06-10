@@ -4,13 +4,28 @@ build-backend = "hatchling.build"
 
 [project]
 name = "rag-mcp"
-version = "0.1.0"
+version = "1.0.0"
 description = "MCP server for RAG knowledge base with vector search + rerank"
 requires-python = ">=3.10"
 license = { text = "MIT" }
+dependencies = [
+    "mcp[cli]",
+    "openai",
+    "chromadb",
+    "pydantic-settings",
+    "pymupdf",
+    "markdown-it-py",
+    "beautifulsoup4",
+    "numpy",
+    "tiktoken",
+]
 
 [project.scripts]
 rag-mcp = "rag_mcp:main"
+
+[project.urls]
+Homepage = "https://github.com/sglwsjxh/rag-mcp"
+Repository = "https://github.com/sglwsjxh/rag-mcp"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/rag_mcp"]
