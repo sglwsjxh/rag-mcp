@@ -30,7 +30,8 @@ class KnowledgeManager:
         self.settings = Settings()
         self.embedder = Embedder()
         self.reranker = Reranker(self.settings)
-        self.chunker = Chunker(max_tokens=self.settings.embedding_input_token - 200)
+        max_tokens = (self.settings.embedding_input_token or 8192) - 200
+        self.chunker = Chunker(max_tokens=max(max_tokens, 256))
 
         self.base_dir = Path(self.settings.database_path)
         self._clients: dict[str, chromadb.PersistentClient] = {}
@@ -244,17 +245,20 @@ class KnowledgeManager:
         """Check existing collection vectors match current embedding dimension."""
         try:
             existing = collection.get(limit=1, include=["embeddings"])
-            if existing["embeddings"] and len(existing["embeddings"]) > 0:
-                db_dim = len(existing["embeddings"][0])
-                if db_dim != self.embedder.detected_dimension:
-                    raise ValueError(
-                        f"Knowledge base '{name}' was created with "
-                        f"{db_dim}D embeddings, current model produces "
-                        f"{self.embedder.detected_dimension}D. "
-                        f"Use the original model or create a new knowledge base."
-                    )
-        except (KeyError, IndexError, ValueError):
-            pass
+            embeddings = existing.get("embeddings") or []
+            if not embeddings:
+                return
+            db_dim = len(embeddings[0])
+        except (KeyError, IndexError, TypeError):
+            return
+
+        current_dim = self.embedder.detected_dimension
+        if current_dim is not None and db_dim != current_dim:
+            raise ValueError(
+                f"Knowledge base '{name}' was created with {db_dim}D embeddings, "
+                f"current model produces {current_dim}D. "
+                f"Use the original model or create a new knowledge base."
+            )
 
     def search(self, query: str, collection_name: str = "", top_k: int | None = None) -> list[dict[str, Any]]:
         """Search across one or all knowledge bases, reranked.
