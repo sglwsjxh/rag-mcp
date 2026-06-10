@@ -30,7 +30,7 @@ class KnowledgeManager:
         self.settings = Settings()
         self.embedder = Embedder()
         self.reranker = Reranker(self.settings)
-        self.chunker = Chunker(max_tokens=self.settings.embedding_input_token)
+        self.chunker = Chunker(max_tokens=self.settings.embedding_input_token - 100)
 
         self.base_dir = Path(self.settings.database_path)
         self._clients: dict[str, chromadb.PersistentClient] = {}
@@ -170,6 +170,26 @@ class KnowledgeManager:
         # Copy file to assets
         shutil.copy2(src, dst)
 
+        # Image branch: embed directly via multimodal API, no chunking
+        IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif"}
+        if src.suffix.lower() in IMAGE_EXTENSIONS:
+            embedding = self.embedder.embed(text=src.stem, images=[str(dst)])
+            chunk_id = uuid.uuid4().hex[:12]
+            collection = self._collection(collection_name)
+            collection.add(
+                ids=[chunk_id],
+                embeddings=[embedding],
+                documents=[src.name],
+                metadatas=[{
+                    "file_name": src.name,
+                    "file_path": str(dst),
+                    "chunk_index": 0,
+                    "token_count": 0,
+                    "type": "image",
+                }],
+            )
+            return 1
+
         # Chunk the file
         chunks = self.chunker.chunk_file(str(dst))
         if not chunks:
@@ -211,8 +231,8 @@ class KnowledgeManager:
         collection = self._collection(collection_name)
         collection.delete(where={"file_name": file_name})
 
-        # Remove the asset file
-        asset_path = self.base_dir / collection_name / "assets" / file_name
+        safe_name = Path(file_name).name
+        asset_path = self.base_dir / collection_name / "assets" / safe_name
         if asset_path.exists():
             asset_path.unlink()
 

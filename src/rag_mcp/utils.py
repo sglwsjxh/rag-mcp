@@ -4,24 +4,8 @@ from __future__ import annotations
 
 import base64
 from pathlib import Path
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:  # pragma: no cover
-    from typing import Literal
 
 # ── lazy third-party imports (avoid hard deps if unused) ──────────────
-
-def _get_pymupdf():
-    """Import fitz (pymupdf) on first use."""
-    import fitz  # noqa: PLC0415
-    return fitz
-
-
-def _get_markdown_it():
-    """Import markdown_it on first use."""
-    from markdown_it import MarkdownIt  # noqa: PLC0415
-    return MarkdownIt
-
 
 def _get_beautifulsoup():
     """Import bs4 on first use."""
@@ -36,28 +20,6 @@ def _read_text_file(path: Path) -> str:
     return path.read_text(encoding="utf-8")
 
 
-def _read_pdf(path: Path) -> str:
-    """Extract text from a PDF using PyMuPDF (fitz)."""
-    fitz = _get_pymupdf()
-    doc = fitz.open(str(path))
-    pages = [page.get_text() for page in doc]
-    doc.close()
-    return "\n\n".join(pages)
-
-
-def _read_markdown(path: Path) -> str:
-    """Extract inline text tokens from a Markdown file."""
-    MarkdownIt = _get_markdown_it()
-    src = _read_text_file(path)
-    md = MarkdownIt()
-    tokens = md.parse(src)
-    parts = []
-    for token in tokens:
-        if token.type == "inline":
-            parts.append(token.content)
-    return "".join(parts)
-
-
 def _read_html(path: Path) -> str:
     """Extract visible text from HTML, preserving line breaks."""
     BeautifulSoup = _get_beautifulsoup()
@@ -69,7 +31,6 @@ def _read_html(path: Path) -> str:
 # ── public API ────────────────────────────────────────────────────────
 
 SUPPORTED_TEXT_EXTENSIONS: tuple[str, ...] = (
-    ".pdf", ".md", ".markdown",
     ".html", ".htm",
     ".txt", ".py", ".js", ".ts", ".tsx", ".jsx",
     ".json", ".yml", ".yaml", ".toml", ".ini", ".cfg", ".conf",
@@ -82,11 +43,8 @@ def read_file(file_path: str) -> str:
 
     Dispatches to the appropriate parser based on file extension:
 
-    - ``.pdf``  → PyMuPDF (fitz) page-by-page extraction
-    - ``.md`` / ``.markdown``  → markdown-it-py inline token extraction
     - ``.html`` / ``.htm``  → BeautifulSoup body text
-    - ``.txt``, ``.py``, ``.js``, etc.  → raw UTF-8 text
-    - others  → attempt UTF-8 read as fallback
+    - Everything else (``.txt``, ``.md``, code files, etc.) → raw UTF-8 read
 
     Raises:
         FileNotFoundError: if *file_path* does not exist.
@@ -98,10 +56,6 @@ def read_file(file_path: str) -> str:
 
     ext = path.suffix.lower()
 
-    if ext == ".pdf":
-        return _read_pdf(path)
-    if ext in (".md", ".markdown"):
-        return _read_markdown(path)
     if ext in (".html", ".htm"):
         return _read_html(path)
 
