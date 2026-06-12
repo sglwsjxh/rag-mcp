@@ -18,6 +18,10 @@ dependencies = [
     "tiktoken",
 ]
 
+[project.optional-dependencies]
+test = ["pytest>=8.0"]
+benchmark = ["datasets>=3.0", "wikipedia>=1.4"]
+
 [project.scripts]
 rag-mcp = "rag_mcp:main"
 

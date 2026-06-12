@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     rerank_top_k: int | None = None
     rerank_score_threshold: float | None = None
     rerank_input_token: int | None = None
+    confidence_threshold: float = 0.3
 
     # ── Database ──
     database_path: str = "./database"

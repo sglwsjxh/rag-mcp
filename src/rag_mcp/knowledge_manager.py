@@ -75,6 +75,39 @@ class KnowledgeManager:
             self._clients[name] = chromadb.PersistentClient(path=str(client_path))
         return self._clients[name]
 
+    # ── Hash deduplication ─────────────────────────────────────────────
+
+    def _hash_path(self, name: str) -> Path:
+        """Return the path to the per-KB file_hashes.json."""
+        return self.base_dir / name / "file_hashes.json"
+
+    def _load_hashes(self, name: str) -> dict[str, str]:
+        """Load the hash map for KB *name*. Returns empty dict if missing."""
+        path = self._hash_path(name)
+        if not path.exists():
+            return {}
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            return data.get("file_hashes", {})
+        except (json.JSONDecodeError, OSError):
+            return {}
+
+    def _save_hashes(self, name: str, hashes: dict[str, str]) -> None:
+        """Persist the hash map for KB *name*."""
+        path = self._hash_path(name)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump({"file_hashes": hashes}, f, ensure_ascii=False, indent=2)
+
+    def _compute_md5(self, file_path: Path) -> str:
+        """Compute MD5 hex digest of a file."""
+        h = hashlib.md5()
+        with open(file_path, "rb") as f:
+            for chunk in iter(lambda: f.read(8192), b""):
+                h.update(chunk)
+        return h.hexdigest()
+
     def _collection(self, name: str) -> chromadb.Collection:
         """Get the ChromaDB collection for *name*, creating it if needed.
 
@@ -171,6 +204,15 @@ class KnowledgeManager:
         # Copy file to assets
         shutil.copy2(src, dst)
 
+        # Hash deduplication: compute MD5 of the asset copy, skip if already seen
+        md5 = self._compute_md5(dst)
+        hashes = self._load_hashes(collection_name)
+        if md5 in hashes.values():
+            dst.unlink()
+            return 0
+        hashes[src.name] = md5
+        self._save_hashes(collection_name, hashes)
+
         # Image branch: embed directly via multimodal API, no chunking
         IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif"}
         if src.suffix.lower() in IMAGE_EXTENSIONS:
@@ -239,14 +281,19 @@ class KnowledgeManager:
         if asset_path.exists():
             asset_path.unlink()
 
+        # Clean up hash record
+        hashes = self._load_hashes(collection_name)
+        hashes.pop(safe_name, None)
+        self._save_hashes(collection_name, hashes)
+
     def _validate_collection_dimension(
         self, collection: chromadb.Collection, name: str
     ) -> None:
         """Check existing collection vectors match current embedding dimension."""
         try:
             existing = collection.get(limit=1, include=["embeddings"])
-            embeddings = existing.get("embeddings") or []
-            if not embeddings:
+            embeddings = existing.get("embeddings")
+            if embeddings is None:
                 return
             db_dim = len(embeddings[0])
         except (KeyError, IndexError, TypeError):
@@ -260,7 +307,9 @@ class KnowledgeManager:
                 f"Use the original model or create a new knowledge base."
             )
 
-    def search(self, query: str, collection_name: str = "", top_k: int | None = None) -> list[dict[str, Any]]:
+    def search(
+        self, query: str, collection_name: str = "", top_k: int | None = None
+    ) -> list[dict[str, Any]] | dict[str, list[dict[str, Any]]]:
         """Search across one or all knowledge bases, reranked.
 
         Args:
@@ -270,7 +319,11 @@ class KnowledgeManager:
             top_k: Max results to return. Overrides env RERANK_TOP_K if set.
 
         Returns:
-            Sorted list of matching documents with metadata.
+            When ``collection_name`` is set: a sorted flat list of matching
+            documents with metadata.
+            When ``collection_name`` is empty (full search): a dict keyed by
+            collection name, each value being a sorted list of matching
+            documents from that collection.  Returns ``{}`` for empty results.
         """
         index = self._index()
         if collection_name:
@@ -313,6 +366,13 @@ class KnowledgeManager:
 
         # Rerank if we have documents
         if all_docs:
-            return self.reranker.rerank(query, all_docs, top_k)
+            results = self.reranker.rerank(query, all_docs, top_k)
+            if collection_name:
+                return results
+            grouped: dict[str, list[dict[str, Any]]] = {}
+            for doc in results:
+                col = doc["collection"]
+                grouped.setdefault(col, []).append(doc)
+            return grouped
 
-        return []
+        return [] if collection_name else {}

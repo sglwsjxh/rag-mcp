@@ -28,6 +28,7 @@ class Reranker:
         self.top_k = settings.rerank_top_k
         self.threshold = settings.rerank_score_threshold
         self.max_input_tokens = settings.rerank_input_token or 8192
+        self.confidence_threshold = settings.confidence_threshold
 
     def rerank(self, query: str, documents: list[dict], top_k: int | None = None) -> list[dict]:
         """Rerank documents by relevance to query.
@@ -85,6 +86,9 @@ class Reranker:
             for r in top:
                 doc = documents[r["index"]].copy()
                 doc["score"] = _sigmoid(r["logit"])
+                doc["confidence"] = (
+                    "high" if doc["score"] >= self.confidence_threshold else "low"
+                )
                 ranked.append(doc)
 
             return ranked
@@ -96,4 +100,5 @@ class Reranker:
         docs = sorted(documents, key=lambda d: d.get("_raw_score", 0))
         for d in docs:
             d["score"] = 0.0
+            d["confidence"] = "unknown"
         return docs
